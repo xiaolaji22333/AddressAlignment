@@ -1,0 +1,4 @@
+# Logs
+# 日志文件
+logs/
+logs/**/*.tfevents.*

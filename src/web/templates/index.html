@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地址智能解析工具</title>
+    <script src="/static/marked.min.js"></script>
+    <script src="/static/purify.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
+    <style>
+        :root {
+            --border-radius: 12px;
+            --primary-color: #4361ee;
+            --primary-light: #ebefff;
+            --secondary-color: #6c757d;
+            --background-color: #f8f9fa;
+            --card-bg-color: #ffffff;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background-color: var(--background-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            padding: 20px;
+            color: #333;
+        }
+
+        .header {
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--secondary-color);
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        #dialog-area {
+            flex: 1;
+            width: 100%;
+            max-width: 900px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--card-bg-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+            min-height: 400px;
+        }
+
+        .message-bubble {
+            display: inline-flex;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            line-height: 1.6;
+            word-break: break-word;
+            max-width: 85%;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .new-message {
+            animation: messageAppear 0.35s ease-out;
+        }
+
+        @keyframes messageAppear {
+            from {
+                opacity: 0;
+                transform: translateY(15px) scale(0.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .user-message {
+            background-color: var(--primary-color);
+            align-self: flex-end;
+            color: white;
+            box-shadow: var(--shadow-md);
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: var(--primary-light);
+            color: #2d3748;
+            box-shadow: var(--shadow-sm);
+            border-bottom-left-radius: 4px;
+        }
+
+        .input-container {
+            width: 100%;
+            max-width: 900px;
+            position: relative;
+        }
+
+        .input-box {
+            width: 100%;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            position: relative;
+            transition: var(--transition);
+            background-color: var(--card-bg-color);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-box:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+        }
+
+        #user-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            max-height: 150px;
+            overflow-y: auto;
+            resize: none;
+            border: none;
+            outline: none;
+            background-color: transparent;
+            line-height: 1.5;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            transition: var(--transition);
+        }
+
+        #user-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .input-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        #send-btn {
+            padding: 10px 24px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #send-btn:hover {
+            background-color: #3651d3;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        #send-btn:active {
+            transform: translateY(0);
+        }
+
+        #send-btn:disabled {
+            background-color: #c5cfe0;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .loading-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+        }
+
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(67, 97, 238, 0.2);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .markdown-content {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        .markdown-content br {
+            display: none;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin: 1em 0 0.5em;
+            color: var(--primary-color);
+        }
+
+        .markdown-content p {
+            margin: 0.5em 0;
+            line-height: 1.6;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.8em;
+        }
+
+        .markdown-content li {
+            margin: 0.3em 0;
+        }
+
+        .markdown-content code {
+            background-color: rgba(160, 174, 192, 0.15);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 0.9em;
+        }
+
+        .markdown-content pre {
+            background-color: #f6f8fa;
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1em 0;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: var(--secondary-color);
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state span {
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            #dialog-area {
+                padding: 16px;
+            }
+
+            .message-bubble {
+                max-width: 90%;
+                padding: 14px;
+            }
+
+            .input-box {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>地址智能解析工具</h1>
+        <p>输入任意格式的地址文本，系统将自动解析并提取其中的省、市、区县、街道和详细地址信息</p>
+    </div>
+
+    <div id="dialog-area">
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <p>请输入需要解析的地址信息</p>
+            <span>例如：北京市海淀区中关村大街27号1101室</span>
+        </div>
+    </div>
+
+    <div class="input-container">
+        <div class="input-box">
+            <textarea id="user-input" placeholder="请输入地址..."></textarea>
+            <div class="input-actions">
+                <button id="send-btn" onclick="sendMessage()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    发送
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dialogArea = document.getElementById('dialog-area');
+        const input = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const loadingBubble = createLoadingBubble();
+
+        // 移除初始的空气泡
+        document.querySelector('.bot-message')?.remove();
+
+        // 发送消息
+        async function sendMessage() {
+            // 获取用户输入
+            const message = input.value.trim();
+            if (!message) return;
+
+            // 移除空状态提示
+            const emptyState = document.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            // 禁用发送按钮
+            sendBtn.disabled = true;
+            // 发送消息
+            addMessage(message, true);
+            // 清空输入框并恢复高度
+            input.value = '';
+            input.style.height = 'auto';
+            // 添加加载状态
+            dialogArea.appendChild(loadingBubble);
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+            // 获取回复
+            try {
+                const response = await fetch('/address_alignment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                const data = await response.json();
+                const address = [
+                    `### 地址解析结果`,
+                    `- **省份**：${data.province ?? 'None'}`,
+                    `- **城市**：${data.city ?? 'None'}`,
+                    `- **区县**：${data.district ?? 'None'}`,
+                    `- **街道**：${data.town ?? 'None'}`,
+                    `- **详细地址**：${data.detail ?? 'None'}`
+                ].join('\n');
+                responseContent = address;
+            } catch (error) {
+                console.error('请求失败：', error);
+                responseContent = '抱歉，地址解析失败，请检查网络连接或稍后重试。';
+            }
+
+            // 移除加载状态
+            loadingBubble.remove();
+            // 发送回复消息
+            if (responseContent != null) {
+                addMessage(responseContent, false);
+            }
+            // 启用发送按钮
+            sendBtn.disabled = false;
+        }
+
+        // 自动调整输入框高度
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+        });
+
+        // 监听回车键
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 创建加载状态的气泡
+        function createLoadingBubble() {
+            const bubble = document.createElement('div');
+            bubble.classList.add('message-bubble', 'bot-message', 'new-message');
+            const loadingContainer = document.createElement('div');
+            loadingContainer.className = 'loading-container';
+            const loader = document.createElement('div');
+            loader.className = 'loader';
+            loadingContainer.appendChild(loader);
+            loadingContainer.appendChild(document.createTextNode('正在解析地址...'));
+            bubble.appendChild(loadingContainer);
+            return bubble;
+        }
+
+        // 添加消息气泡
+        function addMessage(content, isUser) {
+            const bubble = document.createElement('div');
+            // 设置气泡样式
+            bubble.classList.add('message-bubble', isUser ? 'user-message' : 'bot-message', 'new-message');
+
+            // 如果传入的是字符串则创建文本
+            if (!isUser) {
+                // 机器人回复转换为markdown格式
+                const markdownContainer = document.createElement('div');
+                markdownContainer.className = 'markdown-content';
+                const dirty = marked.parse(content.toString());
+                markdownContainer.innerHTML = DOMPurify.sanitize(dirty);
+                bubble.appendChild(markdownContainer);
+            } else {
+                bubble.textContent = content;
+            }
+
+            // 添加气泡动态效果
+            bubble.addEventListener('animationend', function handler() {
+                this.classList.remove('new-message');
+                this.removeEventListener('animationend', handler);
+            });
+
+            // 对话框添加气泡
+            dialogArea.appendChild(bubble);
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+    </script>
+</body>
+
+</html>
